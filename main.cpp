@@ -1,3 +1,7 @@
+#include <array>
+#include <cstddef>
+#include <stdexcept>
+#include <thread>
 #include <iostream>
 #include <mutex>
 #include <memory>
@@ -15,7 +19,16 @@ public:
 
     FineGrainedQueue() : head(nullptr) {}
 
-    void insertIntoMiddle(int value, int pos) {
+    ~FineGrainedQueue() {
+        Node* current = head;
+        while(current) {
+            Node* next = current->next;
+            delete current;
+            current = next;
+        }
+    }
+
+    void insertIntoMiddle(FineGrainedQueue& queue, int value, int pos) {
         static std::lock_guard<std::mutex> lock(queue_mutex);
 
         Node* newNode = new Node();
@@ -26,31 +39,50 @@ public:
         if(pos == 0) {
             newNode->next = head;
             head = newNode;
-        } else {
-            Node* current = head;
-            int count = 0;
-
-            while (current != nullptr && count < pos - 1) {
-                current = current->next;
-                count++;
-            }
-
-            if(current != nullptr) {
-                newNode->next = current->next;
-                current->next = newNode;
-            } else current->next = newNode;
+            return;
         }
+        
+        Node* current = queue.head;
+        int count = 1;
+
+        while(current && count < pos) {
+            current = current->next;
+            count++;
+        }
+
+        if(!current) {
+            if(!current) {
+                newNode->next = nullptr;
+                queue.head = newNode;
+                return;
+            }
+            
+            while(current->next)
+                current = current->next;
+
+            current->next = newNode;
+            newNode->next = nullptr;
+            return;
+        }
+        newNode->next = current->next;
+        current->next = newNode;
     }
 };
 
-int main() {
+int main()
+{
     FineGrainedQueue queue;
+    const int num_threads = 5;
+    std::array<std::thread, num_threads> threads;
 
-    queue.insertIntoMiddle(1,0);
-    queue.insertIntoMiddle(2,1);
-    queue.insertIntoMiddle(3,2);
+    for (size_t i = 0; i < threads.size(); ++i)
+    {
+        threads[i] = std::thread([&queue, i]() { queue.insertIntoMiddle(queue, (i + 1) * 100, 5); });
+    }
 
-    queue.insertIntoMiddle(4,1);
+    for (auto& t : threads)
+        if (t.joinable())
+            t.join();
 
     Node* current = queue.head;
     std::cout << "List: ";
@@ -59,4 +91,6 @@ int main() {
         current = current->next;
     }
     std::cout << std::endl;
+    
+    return 0;
 }
