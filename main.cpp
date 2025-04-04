@@ -1,4 +1,4 @@
-#include <array>
+#include <vector>
 #include <cstddef>
 #include <stdexcept>
 #include <thread>
@@ -28,7 +28,7 @@ public:
         }
     }
 
-    void insertIntoMiddle(FineGrainedQueue& queue, int value, int pos) {
+    void insertIntoMiddle(int value, int pos) {
         static std::lock_guard<std::mutex> lock(queue_mutex);
 
         Node* newNode = new Node();
@@ -42,7 +42,7 @@ public:
             return;
         }
         
-        Node* current = queue.head;
+        Node* current = head;
         int count = 1;
 
         while(current && count < pos) {
@@ -53,10 +53,10 @@ public:
         if(!current) {
             if(!current) {
                 newNode->next = nullptr;
-                queue.head = newNode;
+                head = newNode;
                 return;
             }
-            
+
             while(current->next)
                 current = current->next;
 
@@ -73,20 +73,20 @@ int main()
 {
     FineGrainedQueue queue;
     const int num_threads = 5;
-    std::array<std::thread, num_threads> threads;
+    std::vector<std::thread> threads;
 
-    for (size_t i = 0; i < threads.size(); ++i)
-    {
-        threads[i] = std::thread([&queue, i]() { queue.insertIntoMiddle(queue, (i + 1) * 100, 5); });
-    }
+    for (size_t i = 0; i < num_threads; ++i)
+        threads.emplace_back([&queue, i]() {
+            queue.insertIntoMiddle((i + 1) * 100, 5); 
+        });
 
     for (auto& t : threads)
         if (t.joinable())
             t.join();
 
-    Node* current = queue.head;
     std::cout << "List: ";
-    while(current != nullptr) {
+    Node* current = queue.head;
+    while(current) {
         std::cout << current->value << " ";
         current = current->next;
     }
