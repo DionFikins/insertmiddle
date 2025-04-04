@@ -1,4 +1,4 @@
-#include <vector>
+#include <array>
 #include <cstddef>
 #include <stdexcept>
 #include <thread>
@@ -36,7 +36,7 @@ public:
         newNode->next = nullptr;
         newNode->mutex = new std::mutex;
 
-        if(pos == 0) {
+        if(pos <= 0) {
             newNode->next = head;
             head = newNode;
             return;
@@ -57,8 +57,9 @@ public:
                 return;
             }
 
-            while(current->next)
+            while(current->next) {
                 current = current->next;
+            }
 
             current->next = newNode;
             newNode->next = nullptr;
@@ -73,12 +74,18 @@ int main()
 {
     FineGrainedQueue queue;
     const int num_threads = 5;
-    std::vector<std::thread> threads;
+    std::array<std::thread, num_threads> threads;
 
-    for (size_t i = 0; i < num_threads; ++i)
-        threads.emplace_back([&queue, i]() {
-            queue.insertIntoMiddle((i + 1) * 100, 5); 
+    queue.insertIntoMiddle(10,0);
+    queue.insertIntoMiddle(20,1);
+    queue.insertIntoMiddle(30,2);
+    queue.insertIntoMiddle(40,3);
+
+    for (size_t i = 0; i < threads.size(); ++i) {
+        threads[i] = std::thread([&queue, i]() {queue,
+            queue.insertIntoMiddle((i + 1) * 100, i); 
         });
+    }
 
     for (auto& t : threads)
         if (t.joinable())
